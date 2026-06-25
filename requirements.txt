@@ -1,0 +1,8 @@
+Flask==3.0.3
+requests==2.32.3
+gunicorn==22.0.0
+pytest==8.2.0
+
+# Optional — only needed if you wire up Application Insights on Day 3.
+# Safe to leave installed even if you don't set the connection string env var.
+azure-monitor-opentelemetry==1.6.1

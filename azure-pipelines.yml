@@ -1,0 +1,75 @@
+trigger:
+  - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  dockerImage: 'currencyconverter'
+  dockerRegistry: 'docker.io'
+  dockerRegistryServiceConnection: 'DockerHub'
+
+stages:
+  # ──────────────────────── BUILD & TEST ────────────────────────
+  - stage: Build
+    displayName: 'Build & Test'
+    jobs:
+      - job: BuildAndTest
+        displayName: 'Build and Run Tests'
+        steps:
+          - checkout: self
+
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '3.11'
+            displayName: 'Use Python 3.11'
+
+          - script: pip install -r requirements.txt
+            displayName: 'Install dependencies'
+
+          - script: python -m pytest --junitxml=test-results.xml
+            displayName: 'Run tests'
+            continueOnError: true
+
+          - task: PublishTestResults@2
+            condition: succeededOrFailed()
+            inputs:
+              testResultsFiles: 'test-results.xml'
+              testRunTitle: 'Currency Converter Tests'
+
+  # ──────────────────────── DOCKER BUILD & PUSH ────────────────────────
+  - stage: Docker
+    displayName: 'Build Docker Image'
+    dependsOn: Build
+    condition: succeeded()
+    jobs:
+      - job: DockerBuildPush
+        displayName: 'Build and Push to Docker Hub'
+        steps:
+          - checkout: self
+
+          - task: Docker@2
+            displayName: 'Build Docker Image'
+            inputs:
+              command: 'build'
+              Dockerfile: 'Dockerfile'
+              tags: |
+                $(Build.BuildId)
+                latest
+
+          - task: Docker@2
+            displayName: 'Push to Docker Hub'
+            inputs:
+              command: 'push'
+              containerRegistryType: 'Container Registry'
+              containerRegistry: $(dockerRegistryServiceConnection)
+              repository: '$(DOCKER_USERNAME)/$(dockerImage)'
+              tags: |
+                $(Build.BuildId)
+                latest
+
+          - script: |
+              echo "✅ Image pushed successfully!"
+              echo "🐳 Image: $(DOCKER_USERNAME)/$(dockerImage):latest"
+              echo "📦 Pull it: docker pull $(DOCKER_USERNAME)/$(dockerImage):latest"
+            displayName: 'Print deployment info'

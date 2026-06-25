@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Currency Converter</title>
+  <style>
+    :root {
+      --black: #0a0a0a;
+      --gold: #d4af37;
+      --gold-light: #f5d76e;
+      --gold-dark: #a07810;
+      --gray-900: #1a1a1a;
+      --gray-800: #2c2c2c;
+      --gray-300: #e8e8e8;
+      --white: #ffffff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--black);
+      font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--gray-300);
+      padding: 24px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 440px;
+      background: var(--gray-900);
+      border: 1px solid var(--gold-dark);
+      border-radius: 16px;
+      padding: 36px 32px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--black);
+      background: var(--gold);
+      padding: 4px 10px;
+      border-radius: 999px;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 26px;
+      color: var(--white);
+    }
+
+    .subtitle {
+      margin: 0 0 28px;
+      font-size: 13px;
+      color: var(--gray-300);
+      opacity: 0.7;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--gold-light);
+      margin-bottom: 6px;
+    }
+
+    .field { margin-bottom: 18px; }
+
+    input[type="number"],
+    select {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 8px;
+      border: 1px solid #3a3a3a;
+      background: var(--gray-800);
+      color: var(--white);
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    input[type="number"]:focus,
+    select:focus {
+      border-color: var(--gold);
+    }
+
+    .row {
+      display: flex;
+      gap: 14px;
+    }
+
+    .row .field { flex: 1; }
+
+    .swap-hint {
+      text-align: center;
+      font-size: 11px;
+      color: var(--gold-dark);
+      margin: -6px 0 14px;
+    }
+
+    button {
+      width: 100%;
+      padding: 13px;
+      border: none;
+      border-radius: 8px;
+      background: var(--gold);
+      color: var(--black);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.05s ease;
+    }
+
+    button:hover { background: var(--gold-light); }
+    button:active { transform: scale(0.99); }
+
+    .result {
+      margin-top: 24px;
+      padding: 18px;
+      border-radius: 10px;
+      background: rgba(212, 175, 55, 0.1);
+      border: 1px solid var(--gold-dark);
+      text-align: center;
+    }
+
+    .result .amount {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--gold-light);
+    }
+
+    .result .label {
+      font-size: 12px;
+      color: var(--gray-300);
+      opacity: 0.7;
+      margin-top: 4px;
+    }
+
+    .error {
+      margin-top: 20px;
+      padding: 14px;
+      border-radius: 8px;
+      background: rgba(220, 38, 38, 0.12);
+      border: 1px solid #dc2626;
+      color: #fca5a5;
+      font-size: 13px;
+    }
+
+    footer {
+      margin-top: 28px;
+      text-align: center;
+      font-size: 11px;
+      color: var(--gray-300);
+      opacity: 0.4;
+    }
+
+    footer a { color: var(--gold-dark); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <span class="badge">LIVE EXCHANGE RATES</span>
+    <h1>Currency Converter</h1>
+    <p class="subtitle">Convert between currencies using live exchange rates.</p>
+
+    <form method="POST" action="/">
+      <div class="field">
+        <label for="amount">Amount</label>
+        <input
+          type="number"
+          id="amount"
+          name="amount"
+          step="0.01"
+          min="0"
+          placeholder="100.00"
+          value="{{ form_data.amount }}"
+          required
+        >
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="from_currency">From</label>
+          <select id="from_currency" name="from_currency">
+            {% for c in currencies %}
+              <option value="{{ c }}" {% if c == form_data.from_currency %}selected{% endif %}>{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="to_currency">To</label>
+          <select id="to_currency" name="to_currency">
+            {% for c in currencies %}
+              <option value="{{ c }}" {% if c == form_data.to_currency %}selected{% endif %}>{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <button type="submit">Convert</button>
+    </form>
+
+    {% if result is not none %}
+      <div class="result">
+        <div class="amount">{{ "%.2f"|format(result) }} {{ form_data.to_currency }}</div>
+        <div class="label">{{ form_data.amount }} {{ form_data.from_currency }} converted</div>
+      </div>
+    {% endif %}
+
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <footer>
+      Built for the Azure &amp; Azure DevOps Training &middot;
+      <a href="https://www.godstimechisom.tech" target="_blank" rel="noopener">godstimechisom.tech</a>
+    </footer>
+  </div>
+</body>
+</html>
