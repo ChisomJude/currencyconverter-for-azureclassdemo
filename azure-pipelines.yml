@@ -14,7 +14,7 @@ variables:
   webAppName: 'currencyconverter-demo'
 
   # Agent VM image name
-  vmImageName: Default
+  name: Default
 
   # Environment name
   environmentName: 'currencyconverter-demo'
@@ -30,7 +30,7 @@ stages:
   jobs:
   - job: BuildJob
     pool:
-      vmImage: $(vmImageName)
+      name: Default
     steps:
     - task: UsePythonVersion@0
       inputs:
@@ -66,7 +66,7 @@ stages:
   jobs:
   - deployment: DeploymentJob
     pool:
-      vmImage: $(vmImageName)
+      name: Default
     environment: $(environmentName)
     strategy:
       runOnce:
