@@ -14,7 +14,7 @@ variables:
   webAppName: 'currencyconverter-demo'
 
   # Agent VM image name
-  vmImageName: 'ubuntu-latest'
+  vmImageName: Default
 
   # Environment name
   environmentName: 'currencyconverter-demo'
