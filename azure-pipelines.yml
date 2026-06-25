@@ -1,86 +1,41 @@
-# Python to Linux Web App on Azure
-# Build your Python project and deploy it to Azure as a Linux Web App.
-# Change python version to one thats appropriate for your application.
-# https://docs.microsoft.com/azure/devops/pipelines/languages/python
-
 trigger:
-- master
+  - main
 
-variables:
-  # Azure Resource Manager connection created during pipeline creation
-  azureServiceConnectionId: '5aea83ec-aee1-49f0-be14-cb3efb5e8a51'
-
-  # Web app name
-  webAppName: 'currencyconverter-demo'
-
-  # Agent VM image name
+pool:
   name: Default
 
-  # Environment name
-  environmentName: 'currencyconverter-demo'
-
-  # Project root folder. Point to the folder containing manage.py file.
-  projectRoot: $(System.DefaultWorkingDirectory)
-
-  pythonVersion: '3.11'
+variables:
+  dockerHubUsername: 'chisomjude'
+  imageName: 'JumiaDemoApp'
 
 stages:
-- stage: Build
-  displayName: Build stage
-  jobs:
-  - job: BuildJob
-    pool:
-      name: Default
-    steps:
-    - task: UsePythonVersion@0
-      inputs:
-        versionSpec: '$(pythonVersion)'
-      displayName: 'Use Python $(pythonVersion)'
-
-    - script: |
-        python -m venv antenv
-        source antenv/bin/activate
-        python -m pip install --upgrade pip
-        pip install setup
-        pip install -r requirements.txt
-      workingDirectory: $(projectRoot)
-      displayName: "Install requirements"
-
-    - task: ArchiveFiles@2
-      displayName: 'Archive files'
-      inputs:
-        rootFolderOrFile: '$(projectRoot)'
-        includeRootFolder: false
-        archiveType: zip
-        archiveFile: $(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip
-        replaceExistingArchive: true
-
-    - upload: $(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip
-      displayName: 'Upload package'
-      artifact: drop
-
-- stage: Deploy
-  displayName: 'Deploy Web App'
-  dependsOn: Build
-  condition: succeeded()
-  jobs:
-  - deployment: DeploymentJob
-    pool:
-      name: Default
-    environment: $(environmentName)
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-
+  - stage: Build
+    displayName: 'Build & Test'
+    jobs:
+      - job: BuildAndTest
+        steps:
           - task: UsePythonVersion@0
             inputs:
-              versionSpec: '$(pythonVersion)'
-            displayName: 'Use Python version'
+              versionSpec: '3.11'
+          - script: pip install -r requirements.txt
+            displayName: 'Install dependencies'
+          - script: python -m pytest
+            displayName: 'Run unit tests'
 
-          - task: AzureWebApp@1
-            displayName: 'Deploy Azure Web App : currencyconverter-demo'
+  - stage: PushImage
+    displayName: 'Build & Push to Docker Hub'
+    dependsOn: Build
+    condition: succeeded()
+    jobs:
+      - job: DockerBuildPush
+        steps:
+          - task: Docker@2
+            displayName: 'Build and push image'
             inputs:
-              azureSubscription: $(azureServiceConnectionId)
-              appName: $(webAppName)
-              package: $(Pipeline.Workspace)/drop/$(Build.BuildId).zip
+              containerRegistry: 'dockerhub-connection'
+              repository: '$(dockerHubUsername)/$(imageName)'
+              command: 'buildAndPush'
+              Dockerfile: '**/Dockerfile'
+              tags: |
+                latest
+                $(Build.BuildId)
