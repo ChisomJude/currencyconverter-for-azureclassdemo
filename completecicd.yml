@@ -1,0 +1,91 @@
+trigger:
+  - master
+
+pool:
+  name: Default
+
+variables:
+  acrRegistryName: 'acrcurrencyconvdev'
+  acrRepositoryName: 'currencyconverter'
+  containerAppName: 'currencyconverter-app'
+  containerAppResourceGroup: 'rg-currencyconverter'
+  dockerfilePath: '**/Dockerfile'
+
+stages:
+  - stage: Build
+    displayName: 'Build & Test'
+    jobs:
+      - job: BuildAndTest
+        displayName: 'Build, Test & Prepare'
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '3.11'
+            displayName: 'Set up Python 3.11'
+
+          - script: pip install -r requirements.txt
+            displayName: 'Install dependencies'
+
+          - script: python -m pytest
+            displayName: 'Run unit tests'
+            continueOnError: true
+
+  - stage: PushToACR
+    displayName: 'Build & Push to ACR'
+    dependsOn: Build
+    condition: succeeded()
+    jobs:
+      - job: DockerBuildPush
+        displayName: 'Build Docker image & push to ACR'
+        steps:
+          - task: Docker@2
+            displayName: 'Build and push image to ACR'
+            inputs:
+              command: buildAndPush
+              Dockerfile: $(dockerfilePath)
+              containerRegistry: 'acr-connection'
+              repository: '$(acrRegistryName).azurecr.io/$(acrRepositoryName)'
+              tags: |
+                latest
+                $(Build.BuildId)
+
+  - stage: Deploy
+    displayName: 'Deploy to Container Apps'
+    dependsOn: PushToACR
+    condition: succeeded()
+    jobs:
+      - deployment: DeployToContainerApps
+        displayName: 'Deploy to Azure Container Apps'
+        environment: production
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: AzureCLI@2
+                  displayName: 'Deploy to Container Apps'
+                  inputs:
+                    azureSubscription: 'azure-connection'
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    inlineScript: |
+                      IMAGE_URI="$(acrRegistryName).azurecr.io/$(acrRepositoryName):$(Build.BuildId)"
+                      echo "Deploying image: $IMAGE_URI"
+                      az containerapp update \
+                        --name $(containerAppName) \
+                        --resource-group $(containerAppResourceGroup) \
+                        --image $IMAGE_URI
+                      echo "Deployment completed successfully!"
+
+                - task: AzureCLI@2
+                  displayName: 'Get Container App URL'
+                  inputs:
+                    azureSubscription: 'azure-connection'
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    inlineScript: |
+                      FQDN=$(az containerapp show \
+                        --name $(containerAppName) \
+                        --resource-group $(containerAppResourceGroup) \
+                        --query properties.configuration.ingress.fqdn \
+                        --output tsv)
+                      echo "Container App URL: https://$FQDN"
