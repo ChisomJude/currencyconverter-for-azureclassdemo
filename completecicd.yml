@@ -2,7 +2,7 @@ trigger:
   - master
 
 pool:
-  name: Default
+  name: Default #Note: i am using self hosted agent on my windows pc
 
 variables:
   acrRegistryName: 'acrcurrencyconvdev'
@@ -65,27 +65,17 @@ stages:
                   displayName: 'Deploy to Container Apps'
                   inputs:
                     azureSubscription: 'azure-connection'
-                    scriptType: bash
+                    scriptType: cmd
                     scriptLocation: inlineScript
                     inlineScript: |
-                      IMAGE_URI="$(acrRegistryName).azurecr.io/$(acrRepositoryName):$(Build.BuildId)"
-                      echo "Deploying image: $IMAGE_URI"
-                      az containerapp update \
-                        --name $(containerAppName) \
-                        --resource-group $(containerAppResourceGroup) \
-                        --image $IMAGE_URI
-                      echo "Deployment completed successfully!"
+                      az containerapp update --name $(containerAppName) --resource-group $(containerAppResourceGroup) --image $(acrRegistryName).azurecr.io/$(acrRepositoryName):$(Build.BuildId)
+                      echo Deployment completed successfully!
 
                 - task: AzureCLI@2
                   displayName: 'Get Container App URL'
                   inputs:
                     azureSubscription: 'azure-connection'
-                    scriptType: bash
+                    scriptType: cmd
                     scriptLocation: inlineScript
                     inlineScript: |
-                      FQDN=$(az containerapp show \
-                        --name $(containerAppName) \
-                        --resource-group $(containerAppResourceGroup) \
-                        --query properties.configuration.ingress.fqdn \
-                        --output tsv)
-                      echo "Container App URL: https://$FQDN"
+                      az containerapp show --name $(containerAppName) --resource-group $(containerAppResourceGroup) --query properties.configuration.ingress.fqdn --output tsv
